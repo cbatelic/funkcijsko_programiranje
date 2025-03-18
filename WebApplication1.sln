@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "WebApplication1", "WebApplication1\WebApplication1.fsproj", "{F912DC90-A777-4915-85FB-36F6025BBCDF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F912DC90-A777-4915-85FB-36F6025BBCDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F912DC90-A777-4915-85FB-36F6025BBCDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F912DC90-A777-4915-85FB-36F6025BBCDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F912DC90-A777-4915-85FB-36F6025BBCDF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
