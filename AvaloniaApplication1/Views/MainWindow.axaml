@@ -1,0 +1,18 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="https://github.com/avaloniaui"
+        xmlns:vm="clr-namespace:AvaloniaApplication1.ViewModels"
+        x:Class="AvaloniaApplication1.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Beltmatic"
+        Width="400" Height="250">
+    
+    <Window.DataContext>
+        <vm:MainWindowViewModel />
+    </Window.DataContext>
+
+    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+        <TextBlock Text="{Binding Greeting}" FontSize="24" />
+        <Button Content="Klikni me" Margin="10"/>
+    </StackPanel>
+</Window>
