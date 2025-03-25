@@ -1731,11 +1731,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Chiara\\RiderProjects\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
+      "projectUniqueName": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
       "projectName": "AvaloniaApplication1",
-      "projectPath": "C:\\Users\\Chiara\\RiderProjects\\AvaloniaApplication1\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
+      "projectPath": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
       "packagesPath": "C:\\Users\\Chiara\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Chiara\\RiderProjects\\AvaloniaApplication1\\AvaloniaApplication1\\obj\\",
+      "outputPath": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",

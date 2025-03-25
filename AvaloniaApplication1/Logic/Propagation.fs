@@ -2,11 +2,32 @@ module AvaloniaApplication1.Logic.Propagation
 open FSharp.Data.Adaptive
 open AvaloniaApplication1.Models.Node
 
-module Propagation =
-    let input = cval 10.0
+let rec calculateNodeValue (nodes: Node list) (nodeId: int) : aval<float option> =
+    let node = nodes |> List.find (fun n -> n.Id = nodeId)
+    
+    match node.NodeType with
+    | Input -> 
+        AVal.constant node.Value
+    | Sum ->
+        let inputValues = node.Inputs |> List.map (fun id -> calculateNodeValue nodes id)
+        
+        aval.Bind2 (inputValues.[0], inputValues.[1], fun (v1, v2) ->
+        match (v1, v2) with
+        | (Some x, Some y) -> 
+            AVal.constant (Some (x + y)) 
+        | _ -> 
+            AVal.constant None  
+        )
 
-    let sumNode = AVal.map (fun x -> x + 5.0) input
-    let multiplyNode = AVal.map (fun x -> x * 2.0) sumNode
-
-    let output = multiplyNode
-
+    | Multiply ->
+        let inputValues = node.Inputs |> List.map (fun id -> calculateNodeValue nodes id)
+        
+        aval.Bind2 (inputValues.[0], inputValues.[1], fun (v1, v2) ->
+        match (v1, v2) with
+        | (Some x, Some y) -> 
+            AVal.constant (Some (x * y))  
+        | _ -> 
+            AVal.constant None  
+        )
+    | Output -> 
+        AVal.constant node.Value

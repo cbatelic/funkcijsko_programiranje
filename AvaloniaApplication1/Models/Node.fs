@@ -1,15 +1,19 @@
 module AvaloniaApplication1.Models.Node
 
+open FSharp.Data.Adaptive
+
 type NodeType =
-    | Input of float
-    | Output
+    | Input
     | Sum
     | Multiply
-    | Split
+    | Output
 
 type Node = {
-    Id: string
+    Id: int
+    Name: string
     NodeType: NodeType
+    Inputs: int list
+    Value: float option
 }
 
 
