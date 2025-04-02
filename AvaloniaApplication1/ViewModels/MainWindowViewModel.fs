@@ -4,48 +4,74 @@ open System.Collections.ObjectModel
 open System.Windows.Input
 open CommunityToolkit.Mvvm.ComponentModel
 open CommunityToolkit.Mvvm.Input
+open Avalonia.Controls
+open Avalonia.Controls.Shapes
+open Avalonia.Media
 open AvaloniaApplication1.Models.RuntimeNode
 open AvaloniaApplication1.Models.Node
 open AvaloniaApplication1.Logic.Propagation
 open FSharp.Data.Adaptive
+open System.Collections.Generic
+open Avalonia
+
+type AdaptiveNetwork() =
+    let adaptiveNodes = clist()
+    let adaptiveConnections = clist()
+    let nodeMap = Dictionary<int, AdaptiveNode>()
+
+    member val Nodes = adaptiveNodes with get
+    member val Connections = adaptiveConnections with get
+
+    member _.AddNode(node: AdaptiveNode) =
+        nodeMap[node.Id] <- node
+        adaptiveNodes.Add(node) |> ignore
+
+    member _.ConnectNodes(fromNode: AdaptiveNode, toNode: AdaptiveNode) =
+        adaptiveConnections.Add({ FromNode = fromNode; ToNode = toNode }) |> ignore
+
+    member _.TryGetNode(id: int) =
+        match nodeMap.TryGetValue(id) with
+        | true, node -> Some node
+        | _ -> None
 
 type MainWindowViewModel() =
     inherit ObservableObject()
 
     let mutable nextId = 6
+    let adaptiveNetwork = AdaptiveNetwork()
 
     let initialNodes =
         [
             { Id = 1; Name = "A"; NodeType = Input; Inputs = []; Value = Some 3.0 }
             { Id = 2; Name = "B"; NodeType = Input; Inputs = []; Value = Some 2.0 }
-            { Id = 3; Name = "Sum1"; NodeType = Sum; Inputs = [1; 2]; Value = None }
-            { Id = 4; Name = "Multiply1"; NodeType = Multiply; Inputs = [1; 3]; Value = None }
-            { Id = 5; Name = "Output1"; NodeType = Output; Inputs = [4]; Value = None }
         ]
 
     let nodeCollection =
         initialNodes
         |> List.map (fun n -> RuntimeNode(n.Id, n.Name, calculateNodeValue initialNodes n.Id))
-        |> fun list -> ObservableCollection<RuntimeNode>(list)
+        |> ObservableCollection
 
     let mutable newNodeName = ""
     let mutable newNodeValue = ""
 
-    let mutable selectedInput1: RuntimeNode option = None
-    let mutable selectedInput2: RuntimeNode option = None
+    let mutable selectedInput1 : RuntimeNode option = None
+    let mutable selectedInput2 : RuntimeNode option = None
 
     let mutable selectedOperation = "Sum"
     let operationOptions = [ "Sum"; "Multiply" ]
 
+    let renderRequested = Event<unit>()
+
     member this.Nodes = nodeCollection
+    member this.AdaptiveNetwork = adaptiveNetwork
 
     member this.NewNodeName
         with get() = newNodeName
-        and set value = ignore (this.SetProperty(&newNodeName, value))
+        and set value = this.SetProperty(&newNodeName, value) |> ignore
 
     member this.NewNodeValue
         with get() = newNodeValue
-        and set value = ignore (this.SetProperty(&newNodeValue, value))
+        and set value = this.SetProperty(&newNodeValue, value) |> ignore
 
     member this.Input1
         with get() = selectedInput1 |> Option.toObj
@@ -59,12 +85,23 @@ type MainWindowViewModel() =
             selectedInput2 <- Option.ofObj v
             this.OnPropertyChanged(nameof this.Input2)
 
-
     member this.SelectedOperation
         with get() = selectedOperation
-        and set value = ignore (this.SetProperty(&selectedOperation, value))
+        and set value = this.SetProperty(&selectedOperation, value) |> ignore
 
     member this.OperationOptions = operationOptions
+
+    member this.RenderRequested = renderRequested.Publish
+
+    member this.RequestRender() = renderRequested.Trigger()
+
+    member private this.CreateRuntimeNode (node: Node) allNodes =
+        RuntimeNode(node.Id, node.Name, calculateNodeValue allNodes node.Id)
+
+    member private this.AddNodeInternal (node: Node) allNodes =
+        let runtimeNode = this.CreateRuntimeNode node allNodes
+        nodeCollection.Add(runtimeNode)
+        nextId <- nextId + 1
 
     member this.AddNodeCommand : ICommand =
         RelayCommand(fun () ->
@@ -78,9 +115,10 @@ type MainWindowViewModel() =
                     Value = Some parsed
                 }
 
-                let runtime = RuntimeNode(newNode.Id, newNode.Name, AVal.constant newNode.Value)
-                nodeCollection.Add(runtime)
-                nextId <- nextId + 1
+                this.AddNodeInternal newNode initialNodes
+
+                let adaptiveNode = { Id = nextId; Name = newNodeName; Value = cval parsed; X = cval 50.0; Y = cval 50.0 }
+                adaptiveNetwork.AddNode adaptiveNode
 
                 this.NewNodeName <- ""
                 this.NewNodeValue <- ""
@@ -108,22 +146,38 @@ type MainWindowViewModel() =
 
                 let allNodes =
                     nodeCollection
-                    |> Seq.map (fun r ->
-                        {
-                            Id = r.Id
-                            Name = r.Name
-                            NodeType = Input
-                            Inputs = []
-                            Value = r.Value 
-                        } : Node
-                    )
+                    |> Seq.map (fun r -> { Id = r.Id; Name = r.Name; NodeType = Input; Inputs = []; Value = r.Value })
                     |> Seq.toList
                     |> fun list -> list @ [ newNode ]
 
-                let runtime = RuntimeNode(newNode.Id, newNode.Name, calculateNodeValue allNodes newNode.Id)
-                nodeCollection.Add(runtime)
-                nextId <- nextId + 1
+                this.AddNodeInternal newNode allNodes
+
+                let adaptiveNode = { Id = nextId; Name = newNodeName; Value = cval 0.0; X = cval 100.0; Y = cval 100.0 }
+                adaptiveNetwork.AddNode adaptiveNode
+
+                match adaptiveNetwork.TryGetNode(n1.Id), adaptiveNetwork.TryGetNode(n2.Id) with
+                | Some a1, Some a2 ->
+                    adaptiveNetwork.ConnectNodes(a1, adaptiveNode)
+                    adaptiveNetwork.ConnectNodes(a2, adaptiveNode)
+                | _ -> ()
+
                 this.NewNodeName <- ""
             | _ -> ()
         ) :> ICommand
 
+    member this.RenderAll(canvas: Canvas) =
+        canvas.Children.Clear()
+
+        for node in adaptiveNetwork.Nodes do
+            let ellipse = Ellipse(Width = 60.0, Height = 60.0, Fill = Brushes.LightGreen)
+            Canvas.SetLeft(ellipse, node.X.Value)
+            Canvas.SetTop(ellipse, node.Y.Value)
+            canvas.Children.Add(ellipse) |> ignore
+
+        for conn in adaptiveNetwork.Connections do
+            let line = Line(
+                StartPoint = Point(conn.FromNode.X.Value + 30.0, conn.FromNode.Y.Value + 30.0),
+                EndPoint = Point(conn.ToNode.X.Value + 30.0, conn.ToNode.Y.Value + 30.0),
+                Stroke = Brushes.White,
+                StrokeThickness = 2.0)
+            canvas.Children.Add(line) |> ignore

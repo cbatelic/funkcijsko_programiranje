@@ -51,6 +51,6 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Canvas Name="GraphCanvas" Background="#333" DockPanel.Dock="Bottom" />
+        <Canvas x:Name="GraphCanvas" Background="#333" DockPanel.Dock="Bottom" />
     </DockPanel>
 </Window>

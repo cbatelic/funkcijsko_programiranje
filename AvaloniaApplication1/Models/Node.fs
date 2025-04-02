@@ -16,4 +16,14 @@ type Node = {
     Value: float option
 }
 
+type AdaptiveNode =
+    { Id: int
+      Name: string
+      Value: cval<float>
+      X: cval<float>
+      Y: cval<float> }
+
+type Connection =
+    { FromNode: AdaptiveNode
+      ToNode: AdaptiveNode }
 
