@@ -10,7 +10,7 @@ open System.Reflection
 [<assembly: System.Reflection.AssemblyCompanyAttribute("AvaloniaApplication1")>]
 [<assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")>]
 [<assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")>]
-[<assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ef3c949ff00fa16ba598cc0495716a561ec1c8e5")>]
+[<assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1a52cf63fd495cde42510c46e7f234b00f83e3a2")>]
 [<assembly: System.Reflection.AssemblyProductAttribute("AvaloniaApplication1")>]
 [<assembly: System.Reflection.AssemblyTitleAttribute("AvaloniaApplication1")>]
 [<assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")>]

@@ -353,7 +353,7 @@
           "buildTransitive/CommunityToolkit.Mvvm.targets": {}
         }
       },
-      "FSharp.Core/8.0.403": {
+      "FSharp.Core/9.0.100": {
         "type": "package",
         "compile": {
           "lib/netstandard2.1/FSharp.Core.dll": {
@@ -1148,15 +1148,15 @@
         "lib/netstandard2.1/CommunityToolkit.Mvvm.xml"
       ]
     },
-    "FSharp.Core/8.0.403": {
-      "sha512": "ldNIn4IksrJL/X3rF4R/y9pa3RmwkcGYQ3xFMdbJj8dJ9Q49J735m6sMy3MbCK9gj3YoCsxlyFeExCiNDy3gHQ==",
+    "FSharp.Core/9.0.100": {
+      "sha512": "ye8yagHGsH08H2Twno5GRWkSbrMtxK/SWiHuPcF+3nODpW65/VJ8RO0aWxp8n9+KQbmahg90wAEL3TEXjF0r6A==",
       "type": "package",
-      "path": "fsharp.core/8.0.403",
+      "path": "fsharp.core/9.0.100",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
-        "fsharp.core.8.0.403.nupkg.sha512",
+        "fsharp.core.9.0.100.nupkg.sha512",
         "fsharp.core.nuspec",
         "lib/netstandard2.0/FSharp.Core.dll",
         "lib/netstandard2.0/FSharp.Core.xml",
@@ -1730,33 +1730,24 @@
       "Avalonia.Fonts.Inter >= 11.2.1",
       "Avalonia.Themes.Fluent >= 11.2.1",
       "CommunityToolkit.Mvvm >= 8.4.0",
-      "FSharp.Core >= 8.0.403",
+      "FSharp.Core >= 9.0.100",
       "FSharp.Data.Adaptive >= 1.2.24"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Chiara\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {},
-    "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet": {}
+    "C:\\Users\\lemil\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
+      "projectUniqueName": "C:\\Users\\lemil\\Diplomski_igrica\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
       "projectName": "AvaloniaApplication1",
-      "projectPath": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
-      "packagesPath": "C:\\Users\\Chiara\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Chiara\\test\\funkcijsko_programiranje\\AvaloniaApplication1\\obj\\",
+      "projectPath": "C:\\Users\\lemil\\Diplomski_igrica\\funkcijsko_programiranje\\AvaloniaApplication1\\AvaloniaApplication1.fsproj",
+      "packagesPath": "C:\\Users\\lemil\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\lemil\\Diplomski_igrica\\funkcijsko_programiranje\\AvaloniaApplication1\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages",
-        "C:\\Program Files (x86)\\Microsoft\\Xamarin\\NuGet"
-      ],
       "configFilePaths": [
-        "C:\\Users\\Chiara\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Xamarin.Offline.config"
+        "C:\\Users\\lemil\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
@@ -1764,7 +1755,7 @@
       "sources": {
         "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "C:\\Program Files\\dotnet\\library-packs": {},
-        "C:\\Program Files\\dotnet\\sdk\\8.0.407\\FSharp\\library-packs": {},
+        "C:\\Program Files\\dotnet\\sdk\\9.0.100\\FSharp\\library-packs": {},
         "https://api.nuget.org/v3/index.json": {},
         "https://nuget.ptabusiness.com/api/packages/protech/nuget/index.json": {}
       },
@@ -1777,8 +1768,9 @@
       "restoreAuditProperties": {
         "enableAudit": "true",
         "auditLevel": "low",
-        "auditMode": "direct"
-      }
+        "auditMode": "all"
+      },
+      "SdkAnalysisLevel": "9.0.100"
     },
     "frameworks": {
       "net8.0": {
@@ -1817,7 +1809,7 @@
           "FSharp.Core": {
             "include": "Runtime, Compile, Build, Native, Analyzers, BuildTransitive",
             "target": "Package",
-            "version": "[8.0.403, )",
+            "version": "[9.0.100, )",
             "generatePathProperty": true
           },
           "FSharp.Data.Adaptive": {
@@ -1842,7 +1834,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.407/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.100/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

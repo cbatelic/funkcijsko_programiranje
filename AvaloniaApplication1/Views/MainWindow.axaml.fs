@@ -2,8 +2,6 @@ namespace AvaloniaApplication1.Views
 
 open Avalonia
 open Avalonia.Controls
-open Avalonia.Controls.Shapes
-open Avalonia.Media
 open Avalonia.Markup.Xaml
 open AvaloniaApplication1.ViewModels
 
@@ -16,10 +14,7 @@ type MainWindow() as this =
         AvaloniaXamlLoader.Load(this)
         canvas <- this.FindControl<Canvas>("GraphCanvas")
 
-        this.DataContextChanged.Add(fun _ ->
-            match this.DataContext with
-            | :? MainWindowViewModel as vm ->
-                vm.RenderRequested.Add(fun c -> vm.RenderAll(canvas))
-                vm.RequestRender() 
-            | _ -> ()
-        )
+        let vm = MainWindowViewModel()
+        this.DataContext <- vm
+        vm.RenderRequested.Add(fun () -> vm.RenderAll(canvas))
+        vm.RequestRender()
