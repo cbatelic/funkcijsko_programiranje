@@ -6,8 +6,10 @@ type NodeType =
     | Input
     | Sum
     | Multiply
+    | Subtract
+    | Divide
     | Output
-
+    
 type Node = {
     Id: int
     Name: string

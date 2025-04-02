@@ -1,4 +1,5 @@
-﻿namespace AvaloniaApplication1.ViewModels
+﻿
+namespace AvaloniaApplication1.ViewModels
 
 open System.Collections.ObjectModel
 open System.Windows.Input
@@ -37,26 +38,17 @@ type AdaptiveNetwork() =
 type MainWindowViewModel() =
     inherit ObservableObject()
 
-    let mutable nextId = 6
+    let mutable nextId = 1
     let adaptiveNetwork = AdaptiveNetwork()
+    let mutable selectedConnectionStart : AdaptiveNode option = None
+    let mutable allNodes : Node list = []
 
-    let initialNodes =
-        [
-            { Id = 1; Name = "A"; NodeType = Input; Inputs = []; Value = Some 3.0 }
-            { Id = 2; Name = "B"; NodeType = Input; Inputs = []; Value = Some 2.0 }
-        ]
-
-    let nodeCollection =
-        initialNodes
-        |> List.map (fun n -> RuntimeNode(n.Id, n.Name, calculateNodeValue initialNodes n.Id))
-        |> ObservableCollection
+    let nodeCollection = ObservableCollection<RuntimeNode>()
 
     let mutable newNodeName = ""
     let mutable newNodeValue = ""
-
     let mutable selectedInput1 : RuntimeNode option = None
     let mutable selectedInput2 : RuntimeNode option = None
-
     let mutable selectedOperation = "Sum"
     let operationOptions = [ "Sum"; "Multiply" ]
 
@@ -92,16 +84,19 @@ type MainWindowViewModel() =
     member this.OperationOptions = operationOptions
 
     member this.RenderRequested = renderRequested.Publish
-
     member this.RequestRender() = renderRequested.Trigger()
 
-    member private this.CreateRuntimeNode (node: Node) allNodes =
+    member private this.CreateRuntimeNode (node: Node) (allNodes: Node list) =
         RuntimeNode(node.Id, node.Name, calculateNodeValue allNodes node.Id)
 
-    member private this.AddNodeInternal (node: Node) allNodes =
+    member private this.AddNodeInternal (node: Node) =
+        allNodes <- allNodes @ [node]
         let runtimeNode = this.CreateRuntimeNode node allNodes
         nodeCollection.Add(runtimeNode)
+        let adaptiveNode = { Id = node.Id; Name = node.Name; Value = cval (defaultArg node.Value 0.0); X = cval 100.0; Y = cval 100.0 }
+        adaptiveNetwork.AddNode adaptiveNode
         nextId <- nextId + 1
+        this.RequestRender()
 
     member this.AddNodeCommand : ICommand =
         RelayCommand(fun () ->
@@ -114,12 +109,7 @@ type MainWindowViewModel() =
                     Inputs = []
                     Value = Some parsed
                 }
-
-                this.AddNodeInternal newNode initialNodes
-
-                let adaptiveNode = { Id = nextId; Name = newNodeName; Value = cval parsed; X = cval 50.0; Y = cval 50.0 }
-                adaptiveNetwork.AddNode adaptiveNode
-
+                this.AddNodeInternal newNode
                 this.NewNodeName <- ""
                 this.NewNodeValue <- ""
             | _ -> ()
@@ -144,15 +134,11 @@ type MainWindowViewModel() =
                     Value = None
                 }
 
-                let allNodes =
-                    nodeCollection
-                    |> Seq.map (fun r -> { Id = r.Id; Name = r.Name; NodeType = Input; Inputs = []; Value = r.Value })
-                    |> Seq.toList
-                    |> fun list -> list @ [ newNode ]
+                allNodes <- allNodes @ [newNode]
+                let runtimeNode = this.CreateRuntimeNode newNode allNodes
+                nodeCollection.Add(runtimeNode)
 
-                this.AddNodeInternal newNode allNodes
-
-                let adaptiveNode = { Id = nextId; Name = newNodeName; Value = cval 0.0; X = cval 100.0; Y = cval 100.0 }
+                let adaptiveNode = { Id = newNode.Id; Name = newNode.Name; Value = cval 0.0; X = cval 150.0; Y = cval 150.0 }
                 adaptiveNetwork.AddNode adaptiveNode
 
                 match adaptiveNetwork.TryGetNode(n1.Id), adaptiveNetwork.TryGetNode(n2.Id) with
@@ -161,7 +147,9 @@ type MainWindowViewModel() =
                     adaptiveNetwork.ConnectNodes(a2, adaptiveNode)
                 | _ -> ()
 
+                nextId <- nextId + 1
                 this.NewNodeName <- ""
+                this.RequestRender()
             | _ -> ()
         ) :> ICommand
 
@@ -169,10 +157,43 @@ type MainWindowViewModel() =
         canvas.Children.Clear()
 
         for node in adaptiveNetwork.Nodes do
-            let ellipse = Ellipse(Width = 60.0, Height = 60.0, Fill = Brushes.LightGreen)
+            let isSelected =
+                match selectedConnectionStart with
+                | Some n when n.Id = node.Id -> true
+                | _ -> false
+
+            let fillBrush = if isSelected then Brushes.Orange else Brushes.LightGreen
+
+            let ellipse = Ellipse(Width = 60.0, Height = 60.0, Fill = fillBrush, Stroke = Brushes.Black, StrokeThickness = 2.0)
             Canvas.SetLeft(ellipse, node.X.Value)
             Canvas.SetTop(ellipse, node.Y.Value)
             canvas.Children.Add(ellipse) |> ignore
+
+            ellipse.PointerPressed.Add(fun _ ->
+                match selectedConnectionStart with
+                | None ->
+                    selectedConnectionStart <- Some node
+                    this.RequestRender()
+                | Some fromNode when fromNode.Id <> node.Id ->
+                    adaptiveNetwork.ConnectNodes(fromNode, node)
+                    selectedConnectionStart <- None
+                    this.RequestRender()
+                | _ ->
+                    selectedConnectionStart <- None
+                    this.RequestRender()
+            )
+
+            let label = TextBlock(Text = node.Name, Foreground = Brushes.White)
+            Canvas.SetLeft(label, node.X.Value + 10.0)
+            Canvas.SetTop(label, node.Y.Value + 20.0)
+            canvas.Children.Add(label) |> ignore
+
+            let valueText =
+                let v = AVal.force node.Value
+                TextBlock(Text = $"%.2f{v}", Foreground = Brushes.Yellow)
+            Canvas.SetLeft(valueText, node.X.Value + 10.0)
+            Canvas.SetTop(valueText, node.Y.Value + 35.0)
+            canvas.Children.Add(valueText) |> ignore
 
         for conn in adaptiveNetwork.Connections do
             let line = Line(
