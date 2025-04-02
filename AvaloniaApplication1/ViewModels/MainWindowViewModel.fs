@@ -1,5 +1,4 @@
-﻿
-namespace AvaloniaApplication1.ViewModels
+﻿namespace AvaloniaApplication1.ViewModels
 
 open System.Collections.ObjectModel
 open System.Windows.Input
@@ -7,6 +6,7 @@ open CommunityToolkit.Mvvm.ComponentModel
 open CommunityToolkit.Mvvm.Input
 open Avalonia.Controls
 open Avalonia.Controls.Shapes
+open Avalonia.Input
 open Avalonia.Media
 open AvaloniaApplication1.Models.RuntimeNode
 open AvaloniaApplication1.Models.Node
@@ -42,8 +42,11 @@ type MainWindowViewModel() =
     let adaptiveNetwork = AdaptiveNetwork()
     let mutable selectedConnectionStart : AdaptiveNode option = None
     let mutable allNodes : Node list = []
+    let mutable draggedNode : AdaptiveNode option = None
 
     let nodeCollection = ObservableCollection<RuntimeNode>()
+    let mutable currentX = 100.0
+    let mutable currentY = 100.0
 
     let mutable newNodeName = ""
     let mutable newNodeValue = ""
@@ -93,15 +96,20 @@ type MainWindowViewModel() =
         allNodes <- allNodes @ [node]
         let runtimeNode = this.CreateRuntimeNode node allNodes
         nodeCollection.Add(runtimeNode)
-        let adaptiveNode = { Id = node.Id; Name = node.Name; Value = cval (defaultArg node.Value 0.0); X = cval 100.0; Y = cval 100.0 }
+        let adaptiveNode = { Id = node.Id; Name = node.Name; Value = cval (defaultArg node.Value 0.0); X = cval currentX; Y = cval currentY }
         adaptiveNetwork.AddNode adaptiveNode
         nextId <- nextId + 1
         this.RequestRender()
 
+        currentX <- currentX + 100.0 
+        if currentX > 600.0 then
+            currentX <- 100.0
+            currentY <- currentY + 100.0  
+
     member this.AddNodeCommand : ICommand =
-        RelayCommand(fun () ->
+        RelayCommand(fun () -> 
             match System.Double.TryParse(newNodeValue) with
-            | true, parsed ->
+            | true, parsed -> 
                 let newNode = {
                     Id = nextId
                     Name = newNodeName
@@ -116,11 +124,11 @@ type MainWindowViewModel() =
         ) :> ICommand
 
     member this.AddConnectedNodeCommand : ICommand =
-        RelayCommand(fun () ->
+        RelayCommand(fun () -> 
             match selectedInput1, selectedInput2 with
-            | Some n1, Some n2 ->
+            | Some n1, Some n2 -> 
                 let inputIds = [ n1.Id; n2.Id ]
-                let nodeType =
+                let nodeType = 
                     match selectedOperation with
                     | "Sum" -> NodeType.Sum
                     | "Multiply" -> NodeType.Multiply
@@ -138,11 +146,12 @@ type MainWindowViewModel() =
                 let runtimeNode = this.CreateRuntimeNode newNode allNodes
                 nodeCollection.Add(runtimeNode)
 
-                let adaptiveNode = { Id = newNode.Id; Name = newNode.Name; Value = cval 0.0; X = cval 150.0; Y = cval 150.0 }
+                let adaptiveNode = { Id = newNode.Id; Name = newNode.Name; Value = cval 0.0; X = cval currentX; Y = cval currentY }
                 adaptiveNetwork.AddNode adaptiveNode
 
+                // Povezivanje čvorova
                 match adaptiveNetwork.TryGetNode(n1.Id), adaptiveNetwork.TryGetNode(n2.Id) with
-                | Some a1, Some a2 ->
+                | Some a1, Some a2 -> 
                     adaptiveNetwork.ConnectNodes(a1, adaptiveNode)
                     adaptiveNetwork.ConnectNodes(a2, adaptiveNode)
                 | _ -> ()
@@ -150,6 +159,18 @@ type MainWindowViewModel() =
                 nextId <- nextId + 1
                 this.NewNodeName <- ""
                 this.RequestRender()
+            | _ -> ()
+        ) :> ICommand
+
+    member this.SyncNodesCommand : ICommand =
+        RelayCommand(fun () -> 
+            match selectedInput1, selectedInput2 with
+            | Some n1, Some n2 -> 
+                // Povezivanje selektiranih čvorova
+                match adaptiveNetwork.TryGetNode(n1.Id), adaptiveNetwork.TryGetNode(n2.Id) with
+                | Some a1, Some a2 -> 
+                    adaptiveNetwork.ConnectNodes(a1, a2)
+                    this.RequestRender()
             | _ -> ()
         ) :> ICommand
 
@@ -169,18 +190,26 @@ type MainWindowViewModel() =
             Canvas.SetTop(ellipse, node.Y.Value)
             canvas.Children.Add(ellipse) |> ignore
 
-            ellipse.PointerPressed.Add(fun _ ->
-                match selectedConnectionStart with
-                | None ->
-                    selectedConnectionStart <- Some node
+            ellipse.PointerPressed.Add(fun args ->
+                if args.GetCurrentPoint(ellipse).Properties.IsLeftButtonPressed then
+                    draggedNode <- Some node
+                    args.Pointer.Capture(ellipse) |> ignore
+            )
+
+            ellipse.PointerMoved.Add(fun args ->
+                match draggedNode with
+                | Some dn when args.Pointer.Captured <> null -> 
+                    let capturedElement = args.Pointer.Captured
+                    let p = args.GetPosition(canvas)
+                    dn.Y.Value <- p.Y - 30.0
+                    dn.X.Value <- p.X - 30.0
                     this.RequestRender()
-                | Some fromNode when fromNode.Id <> node.Id ->
-                    adaptiveNetwork.ConnectNodes(fromNode, node)
-                    selectedConnectionStart <- None
-                    this.RequestRender()
-                | _ ->
-                    selectedConnectionStart <- None
-                    this.RequestRender()
+                | _ -> ()
+            )
+
+            ellipse.PointerReleased.Add(fun args ->
+                draggedNode <- None
+                args.Pointer.Capture(canvas :> IInputElement) |> ignore
             )
 
             let label = TextBlock(Text = node.Name, Foreground = Brushes.White)
