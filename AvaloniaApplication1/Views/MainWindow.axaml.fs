@@ -16,5 +16,4 @@ type MainWindow() as this =
 
         let vm = MainWindowViewModel()
         this.DataContext <- vm
-        vm.RenderRequested.Add(fun () -> vm.RenderAll(canvas))
-        vm.RequestRender()
+

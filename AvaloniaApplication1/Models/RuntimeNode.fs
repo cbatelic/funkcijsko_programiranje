@@ -29,3 +29,5 @@ type RuntimeNode(id: int, name: string, value: aval<float option>) =
     interface INotifyPropertyChanged with
         [<CLIEvent>]
         member _.PropertyChanged = propertyChanged.Publish
+        
+        
