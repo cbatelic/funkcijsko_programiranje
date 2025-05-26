@@ -1,43 +1,50 @@
-
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:AvaloniaApplication1.ViewModels"
         x:Class="AvaloniaApplication1.Views.MainWindow"
-        Title="Beltmatic UI" Width="850" Height="650">
+        Title="Beltmatic UI" Width="1000" Height="700" Background="Black">
 
     <Window.DataContext>
         <vm:MainWindowViewModel />
     </Window.DataContext>
 
-    <DockPanel>
-        <ScrollViewer DockPanel.Dock="Top" Height="500">
-            <StackPanel Margin="20">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="500"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-                <TextBlock Text="Unesi vrijednost:" FontWeight="Bold"/>
-                <StackPanel Orientation="Horizontal" Margin="0 5 0 15">
-                    <TextBox Width="100" Text="{Binding NewValue}" Watermark="Vrijednost"/>
-                    <Button Content="Dodaj" Command="{Binding AddInputCommand}" Margin="10 0 0 0"/>
-                </StackPanel>
+        <!-- 👁️ Vizualni prikaz čvorova i veza -->
+        <Canvas x:Name="NodeCanvas" Background="Black" Grid.Row="0" Width="900" Height="500"/>
 
-                <TextBlock Text="Dodaj operaciju:" FontWeight="Bold"/>
-                <StackPanel Orientation="Horizontal" Margin="0 5 0 15">
-                    <ComboBox Width="150" ItemsSource="{Binding Operations}" SelectedItem="{Binding SelectedOperation}"/>
-                    <Button Content="Dodaj operaciju" Command="{Binding AddOperationCommand}" Margin="10 0 0 0"/>
-                </StackPanel>
 
-                <TextBlock Text="Klikni na čvorove koje želiš izračunati:" FontWeight="Bold"/>
+        <!-- 👇 UI za unos, operacije, selekciju -->
+        <StackPanel Grid.Row="1" Margin="20" Spacing="10">
+            <!-- Unos vrijednosti -->
+            <TextBlock Text="Unesi vrijednost:" FontWeight="Bold" Foreground="White"/>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBox Width="100" Text="{Binding NewValue}" Watermark="Vrijednost"/>
+                <Button Content="Dodaj" Command="{Binding AddInputCommand}" />
+            </StackPanel>
+
+            <!-- Odabir operacije -->
+            <TextBlock Text="Dodaj operaciju:" FontWeight="Bold" Foreground="White"/>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <ComboBox Width="150" ItemsSource="{Binding Operations}" SelectedItem="{Binding SelectedOperation}"/>
+                <Button Content="Dodaj operaciju" Command="{Binding AddOperationCommand}" />
+            </StackPanel>
+
+            <!-- Selektiranje čvorova -->
+            <TextBlock Text="Klikni na čvorove koje želiš izračunati:" FontWeight="Bold" Foreground="White"/>
+            <ScrollViewer Height="200">
                 <ItemsControl ItemsSource="{Binding Nodes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="Black"
-                                    BorderThickness="2"
-                                    Margin="5"
-                                    Padding="8"
-                                    Background="LightGray">
+                            <Border BorderBrush="White" BorderThickness="1" Margin="5" Background="Gray">
                                 <Button Command="{Binding DataContext.ToggleSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}">
-                                    <StackPanel Orientation="Vertical">
-                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" />
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" />
                                         <TextBlock Text="{Binding Value}" />
                                     </StackPanel>
                                 </Button>
@@ -45,13 +52,15 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </ScrollViewer>
 
-                <StackPanel Orientation="Horizontal" Margin="0 20 0 0">
-                    <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
-                    <TextBlock Text="Rezultat:" FontWeight="Bold" Margin="20 0 10 0"/>
-                    <TextBlock Text="{Binding CalculationResult}" FontSize="16"/>
-                </StackPanel>
+
+            <!-- Gumb Izračunaj -->
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
+                <TextBlock Text="Rezultat:" FontWeight="Bold" Foreground="White"/>
+                <TextBlock Text="{Binding CalculationResult}" FontSize="16" Foreground="LightGreen"/>
             </StackPanel>
-        </ScrollViewer>
-    </DockPanel>
+        </StackPanel>
+    </Grid>
 </Window>

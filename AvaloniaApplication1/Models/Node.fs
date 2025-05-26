@@ -9,6 +9,7 @@ type NodeType =
     | Subtract
     | Divide
     | Output
+    | Sqrt
     
 type Node = {
     Id: int
@@ -29,3 +30,6 @@ type Connection =
     { FromNode: AdaptiveNode
       ToNode: AdaptiveNode }
 
+type Port =
+    | InputPort of string
+    | OutputPort of string
