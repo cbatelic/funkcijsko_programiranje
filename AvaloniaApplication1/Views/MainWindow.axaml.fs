@@ -17,7 +17,7 @@ type MainWindow() as this =
         let canvas = this.FindControl<Canvas>("NodeCanvas")
 
         let createVisualNode (id: int) (x: float) (y: float) (label: string) (color: string) =
-            Debug.WriteLine($"🎨 Creating node '{label}' at ({x},{y})")
+            Debug.WriteLine($" Creating node '{label}' at ({x},{y})")
 
             let radius = 60.0
 
@@ -40,7 +40,7 @@ type MainWindow() as this =
             let centerX = x + radius / 2.0
             let centerY = y + radius / 2.0
 
-            // ⚠️ Precizno centriranje teksta (na oko)
+            // ️ Precizno centriranje teksta (na oko)
             Canvas.SetLeft(text, centerX - 10.0)
             Canvas.SetTop(text, centerY - 10.0)
 
@@ -64,11 +64,11 @@ type MainWindow() as this =
 
                     canvas.Children.Clear()
 
-                    // 🔧 Canvas dimenzije
+                    //  Canvas dimenzije
                     let canvasWidth = 900.0
                     let canvasHeight = 500.0
 
-                    // 🔧 X pozicije centrirano
+                    // X pozicije centrirano
                     let spacingX = 200.0
                     let inputX = canvasWidth / 2.0 - spacingX
                     let operatorX = canvasWidth / 2.0
@@ -77,6 +77,10 @@ type MainWindow() as this =
                     // 🔧 Y raspored
                     let spacingY = 100.0
                     let baseY = canvasHeight / 2.0
+
+                    viewModel.ClearAllRequested.Add(fun () ->
+                    canvas.Children.Clear()
+                       )
 
                     let totalHeight = float (inputs.Length - 1) * spacingY
                     let startY = baseY - totalHeight / 2.0
@@ -103,7 +107,7 @@ type MainWindow() as this =
                         |> List.map snd
                         |> List.average
 
-                    // 🔣 Simbol operacije
+                    //  Simbol operacije
                     let opSymbol =
                         match operation with
                         | "Zbrajanje" -> "+"
@@ -113,10 +117,10 @@ type MainWindow() as this =
                         | "Korijen" -> "√"
                         | _ -> operation
 
-                    // 🟧 Operacija čvor
+                    //  Operacija čvor
                     createVisualNode -1 operatorX (centerY - 30.0) opSymbol "#E67E22"
 
-                    // ✅ Rezultat čvor (samo broj)
+                    //  Rezultat čvor (samo broj)
                     createVisualNode -2 resultX (centerY - 30.0) $"{result}" "#2ECC71"
 
                     for (x, y) in inputPositions do
@@ -125,7 +129,7 @@ type MainWindow() as this =
                     drawConnection (operatorX + 60.0) centerY resultX centerY
                 )
             | _ ->
-                Debug.WriteLine("⚠️ ViewModel NOT FOUND")
+                Debug.WriteLine(" ViewModel NOT FOUND")
 
         attachIfViewModel this.DataContext
         this.DataContextChanged.Add(fun _ -> attachIfViewModel this.DataContext)

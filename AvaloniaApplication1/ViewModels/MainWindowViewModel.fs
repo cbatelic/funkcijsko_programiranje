@@ -22,7 +22,10 @@ type MainWindowViewModel() =
     let mutable calculationResult = 0.0
 
     let calculationPerformed = Event<(int * string) list * string * float>()
+    let clearAllRequested = Event<unit>() // ✅ novi event
+
     member this.CalculationPerformed = calculationPerformed.Publish
+    member this.ClearAllRequested = clearAllRequested.Publish
 
     member this.Nodes = nodes
 
@@ -43,8 +46,9 @@ type MainWindowViewModel() =
     member this.SelectedNodes = selectedNodes
 
     member this.ToggleSelectionCommand : ICommand =
+        
         RelayCommand<RuntimeNode>(fun node ->
-            Debug.WriteLine($"🟡 Toggle node: {node.Name}")
+            node.IsSelected <- true 
             if selectedNodes.Contains(node) then
                 selectedNodes.Remove(node) |> ignore
             else
@@ -58,12 +62,6 @@ type MainWindowViewModel() =
 
     member this.CalculateCommand : ICommand =
         RelayCommand(fun () ->
-            Debug.WriteLine("🧠 CalculateCommand triggered")
-
-            // ❌ više NE selektiramo automatski
-            Debug.WriteLine($"📌 selectedNodes.Count (user-selected): {selectedNodes.Count}")
-            Debug.WriteLine($"📌 selectedOperation = {selectedOperation}")
-
             if selectedNodes.Count > 0 && not (System.String.IsNullOrWhiteSpace selectedOperation) then
                 let inputNodes =
                     selectedNodes
@@ -106,20 +104,19 @@ type MainWindowViewModel() =
                     let result = calculateNodeValue allNodes virtualNode.Id
                     match result |> AVal.force with
                     | Some v ->
-                        Debug.WriteLine($"✅ Result = {v}")
                         this.CalculationResult <- v
                         let inputLabels = inputNodes |> List.map (fun n -> (n.Id, n.Name))
                         calculationPerformed.Trigger(inputLabels, selectedOperation, v)
                     | None ->
-                        Debug.WriteLine("⚠️ No result (None)")
                         this.CalculationResult <- nan
 
-                    this.SelectedNodes.Clear()
+                    for node in selectedNodes do
+                        node.IsSelected <- false
+                    selectedNodes.Clear()
                     this.SelectedOperation <- "Odaberi"
 
                 with
                 | :? System.ArgumentException ->
-                    Debug.WriteLine("❌ ArgumentException during calculation")
                     this.CalculationResult <- nan
         )
 
@@ -129,16 +126,13 @@ type MainWindowViewModel() =
             | true, v ->
                 let node = RuntimeNode(System.Guid.NewGuid().GetHashCode(), $"Input {nodes.Count + 1}", AVal.constant (Some v))
                 nodes.Add(node)
-                Debug.WriteLine($"➕ Input added: {v}")
                 this.NewValue <- ""
             | _ ->
-                Debug.WriteLine("❌ Invalid input (not a number)")
+                Debug.WriteLine("Invalid input (not a number)")
         )
 
     member this.AddOperationCommand : ICommand =
         RelayCommand(fun () ->
-            Debug.WriteLine($"➕ Adding operation: {selectedOperation}")
-
             let existingOps =
                 nodes
                 |> Seq.filter (fun n ->
@@ -152,4 +146,14 @@ type MainWindowViewModel() =
 
             let node = RuntimeNode(System.Guid.NewGuid().GetHashCode(), selectedOperation, AVal.constant None)
             nodes.Add(node)
+        )
+
+    member this.ClearAllCommand : ICommand =
+        RelayCommand(fun () ->
+            nodes.Clear()
+            selectedNodes.Clear()
+            this.CalculationResult <- 0.0
+            this.SelectedOperation <- "Odaberi"
+            this.NewValue <- ""
+            clearAllRequested.Trigger() // ✅ obavijestimo view da treba počistiti canvas
         )

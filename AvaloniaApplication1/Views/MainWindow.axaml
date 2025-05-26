@@ -14,11 +14,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- 👁️ Vizualni prikaz čvorova i veza -->
+        <!-- Vizualni prikaz čvorova i veza -->
         <Canvas x:Name="NodeCanvas" Background="Black" Grid.Row="0" Width="900" Height="500"/>
 
 
-        <!-- 👇 UI za unos, operacije, selekciju -->
+        <!-- UI za unos, operacije, selekciju -->
         <StackPanel Grid.Row="1" Margin="20" Spacing="10">
             <!-- Unos vrijednosti -->
             <TextBlock Text="Unesi vrijednost:" FontWeight="Bold" Foreground="White"/>
@@ -40,7 +40,8 @@
                 <ItemsControl ItemsSource="{Binding Nodes}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderBrush="White" BorderThickness="1" Margin="5" Background="Gray">
+                            <Border BorderBrush="White" BorderThickness="1" Margin="5"
+                                    Background="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter}}">
                                 <Button Command="{Binding DataContext.ToggleSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}">
                                     <StackPanel>
@@ -55,12 +56,15 @@
             </ScrollViewer>
 
 
-            <!-- Gumb Izračunaj -->
+            <!-- Buton Izračunaj -->
             <StackPanel Orientation="Horizontal" Spacing="10">
                 <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
                 <TextBlock Text="Rezultat:" FontWeight="Bold" Foreground="White"/>
                 <TextBlock Text="{Binding CalculationResult}" FontSize="16" Foreground="LightGreen"/>
             </StackPanel>
+            
+            <Button Content="Obriši" Command="{Binding ClearAllCommand}" Background="DarkRed" Foreground="White"/>
+            
         </StackPanel>
     </Grid>
 </Window>
