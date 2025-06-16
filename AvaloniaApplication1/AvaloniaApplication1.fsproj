@@ -18,6 +18,8 @@
 
         <!-- LOGIKA -->
         <Compile Include="Logic\Propagation.fs" />
+        <Compile Include="Logic\BidirectionalPropagation.fs" />
+        <Compile Include="Logic\PropagationService.fs" />
 
         <!-- KONVERTERI -->
         <Compile Include="Converters\BoolToBrushConverter.fs" />

@@ -16,10 +16,8 @@ type MainWindow() as this =
 
         let canvas = this.FindControl<Canvas>("NodeCanvas")
 
-        let createVisualNode (id: int) (x: float) (y: float) (label: string) (color: string) =
-            Debug.WriteLine($" Creating node '{label}' at ({x},{y})")
-
-            let radius = 60.0
+        let createVisualNode (x: float) (y: float) (label: string) (color: string) =
+            let radius = 50.0
 
             let circle = Ellipse()
             circle.Width <- radius
@@ -27,109 +25,62 @@ type MainWindow() as this =
             circle.Fill <- SolidColorBrush(Color.Parse(color))
             circle.Stroke <- Brushes.White
             circle.StrokeThickness <- 2.0
-            circle.Tag <- id
             Canvas.SetLeft(circle, x)
             Canvas.SetTop(circle, y)
 
             let text = TextBlock()
             text.Text <- label
             text.Foreground <- Brushes.White
-            text.FontSize <- 16.0
-            text.FontWeight <- FontWeight.Bold
-
-            let centerX = x + radius / 2.0
-            let centerY = y + radius / 2.0
-
-            // ️ Precizno centriranje teksta (na oko)
-            Canvas.SetLeft(text, centerX - 10.0)
-            Canvas.SetTop(text, centerY - 10.0)
+            text.FontSize <- 14.0
+            Canvas.SetLeft(text, x + radius / 4.0)
+            Canvas.SetTop(text, y + radius / 4.0)
 
             canvas.Children.Add(circle) |> ignore
             canvas.Children.Add(text) |> ignore
 
         let drawConnection (x1: float) (y1: float) (x2: float) (y2: float) =
             let line = Line()
-            line.SetValue(Line.StartPointProperty, Point(x1, y1)) |> ignore
-            line.SetValue(Line.EndPointProperty, Point(x2, y2)) |> ignore
-            line.Stroke <- Brushes.White
+            line.StartPoint <- Point(x1, y1)
+            line.EndPoint <- Point(x2, y2)
+            line.Stroke <- Brushes.Gray
             line.StrokeThickness <- 2.0
             canvas.Children.Add(line) |> ignore
 
         let attachIfViewModel (dc: obj) =
             match dc with
             | :? MainWindowViewModel as viewModel ->
-                Debug.WriteLine("✅ CalculationPerformed connected!")
-                viewModel.CalculationPerformed.Add(fun (inputs, operation, result) ->
-                    Debug.WriteLine($"🚨 Drawing graph with {inputs.Length} inputs")
-
+                viewModel.CalculationPerformed.Add(fun args ->
                     canvas.Children.Clear()
 
-                    //  Canvas dimenzije
-                    let canvasWidth = 900.0
-                    let canvasHeight = 500.0
+                    if List.isEmpty args.Inputs then
+                        Debug.WriteLine("⚠️ Lista čvorova je prazna, preskačem crtanje.")
+                    else
+                        let inputPositions =
+                            args.Inputs
+                            |> List.mapi (fun i (_, valueLabel) ->
+                                let x = 50.0
+                                let y = 100.0 + float i * 100.0
+                                createVisualNode x y valueLabel "#2980B9"
+                                (x + 50.0, y + 25.0)
+                            )
 
-                    // X pozicije centrirano
-                    let spacingX = 200.0
-                    let inputX = canvasWidth / 2.0 - spacingX
-                    let operatorX = canvasWidth / 2.0
-                    let resultX = canvasWidth / 2.0 + spacingX
+                        let centerY = inputPositions |> List.map snd |> List.average
+                        let opX = 300.0
+                        let resultX = 500.0
 
-                    // 🔧 Y raspored
-                    let spacingY = 100.0
-                    let baseY = canvasHeight / 2.0
+                        createVisualNode opX (centerY - 25.0) args.Operation "#E67E22"
+                        createVisualNode resultX (centerY - 25.0) args.Result "#27AE60"
 
-                    viewModel.ClearAllRequested.Add(fun () ->
-                    canvas.Children.Clear()
-                       )
+                        for (x, y) in inputPositions do
+                            drawConnection x y opX centerY
 
-                    let totalHeight = float (inputs.Length - 1) * spacingY
-                    let startY = baseY - totalHeight / 2.0
-
-                    let inputPositions =
-                        inputs
-                        |> List.mapi (fun i (id, _) ->
-                            let y = startY + float i * spacingY
-
-                            let valueStr =
-                                viewModel.Nodes
-                                |> Seq.tryFind (fun n -> n.Id = id)
-                                |> Option.bind (fun n -> n.Value)
-                                |> Option.map string
-                                |> Option.defaultValue "?"
-
-                            let label = valueStr
-                            createVisualNode id inputX y label "#3498DB"
-                            (inputX + 60.0, y + 30.0)
-                        )
-
-                    let centerY =
-                        inputPositions
-                        |> List.map snd
-                        |> List.average
-
-                    //  Simbol operacije
-                    let opSymbol =
-                        match operation with
-                        | "Zbrajanje" -> "+"
-                        | "Oduzimanje" -> "-"
-                        | "Množenje" -> "×"
-                        | "Dijeljenje" -> "÷"
-                        | "Korijen" -> "√"
-                        | _ -> operation
-
-                    //  Operacija čvor
-                    createVisualNode -1 operatorX (centerY - 30.0) opSymbol "#E67E22"
-
-                    //  Rezultat čvor (samo broj)
-                    createVisualNode -2 resultX (centerY - 30.0) $"{result}" "#2ECC71"
-
-                    for (x, y) in inputPositions do
-                        drawConnection x y operatorX centerY
-
-                    drawConnection (operatorX + 60.0) centerY resultX centerY
+                        drawConnection (opX + 50.0) centerY resultX centerY
                 )
-            | _ ->
-                Debug.WriteLine(" ViewModel NOT FOUND")
+
+                viewModel.ClearAllRequested.Add(fun () ->
+                    canvas.Children.Clear()
+                )
+            | _ -> ()
 
         attachIfViewModel this.DataContext
         this.DataContextChanged.Add(fun _ -> attachIfViewModel this.DataContext)

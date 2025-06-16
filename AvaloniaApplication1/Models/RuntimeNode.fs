@@ -6,7 +6,7 @@ open System.Runtime.CompilerServices
 
 [<AllowNullLiteral>]
 type RuntimeNode(id: int, name: string, value: aval<float option>) =
-    
+
     let mutable currentValue = value |> AVal.force
     let mutable isSelected = false
 
@@ -23,7 +23,7 @@ type RuntimeNode(id: int, name: string, value: aval<float option>) =
 
     member this.Value
         with get() = currentValue
-        and private set(v) =
+        and set(v) =
             currentValue <- v
             propertyChanged.Trigger(this, PropertyChangedEventArgs(nameof this.Value))
 
@@ -33,6 +33,9 @@ type RuntimeNode(id: int, name: string, value: aval<float option>) =
             if isSelected <> v then
                 isSelected <- v
                 propertyChanged.Trigger(this, PropertyChangedEventArgs(nameof this.IsSelected))
+
+    member this.ForceUpdate(newValue: float option) =
+        this.Value <- newValue
 
     interface INotifyPropertyChanged with
         [<CLIEvent>]
