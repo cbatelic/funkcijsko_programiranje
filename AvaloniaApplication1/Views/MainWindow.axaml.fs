@@ -3,6 +3,7 @@ namespace AvaloniaApplication1.Views
 open Avalonia
 open Avalonia.Controls
 open Avalonia.Controls.Shapes
+open Avalonia.Input
 open Avalonia.Markup.Xaml
 open Avalonia.Media
 open AvaloniaApplication1.ViewModels
@@ -14,27 +15,62 @@ type MainWindow() as this =
         this.InitializeComponent()
         let canvas = this.FindControl<Canvas>("NodeCanvas")
 
-        let createVisualNode (x: float) (y: float) (label: string) (color: string) =
+        let createVisualNode (viewModel: MainWindowViewModel) (x: float) (y: float) (node: Node) =
             let radius = 50.0
 
             let circle = Ellipse()
             circle.Width <- radius
             circle.Height <- radius
-            circle.Fill <- SolidColorBrush(Color.Parse(color))
+            circle.Fill <-
+                SolidColorBrush(
+                    match node.NodeType with
+                    | Input _ -> Color.Parse("#2980B9")
+                    | Sum -> Color.Parse("#E67E22")
+                    | Output _ -> Color.Parse("#27AE60")
+                )
             circle.Stroke <- Brushes.White
             circle.StrokeThickness <- 2.0
             Canvas.SetLeft(circle, x)
             Canvas.SetTop(circle, y)
-
-            let text = TextBlock()
-            text.Text <- label
-            text.Foreground <- Brushes.White
-            text.FontSize <- 14.0
-            Canvas.SetLeft(text, x + 10.0)
-            Canvas.SetTop(text, y + 15.0)
-
             canvas.Children.Add(circle) |> ignore
-            canvas.Children.Add(text) |> ignore
+
+            if node.IsEditing then
+                let textBox = TextBox()
+                textBox.Width <- 40.0
+                textBox.Text <- node.Name
+                Canvas.SetLeft(textBox, x + 5.0)
+                Canvas.SetTop(textBox, y + 15.0)
+
+                // Save on LostFocus
+                textBox.LostFocus.Add(fun _ ->
+                    let newValue =
+                        if System.String.IsNullOrWhiteSpace(textBox.Text) then
+                            None
+                        else Some textBox.Text
+                    viewModel.UpdateNodeValue(node.Id, newValue)
+                )
+
+                // Save on Enter
+                textBox.KeyDown.Add(fun args ->
+                    if args.Key = Key.Enter then
+                        textBox.Focusable <- false
+                        this.Focus() |> ignore
+                )
+
+                canvas.Children.Add(textBox) |> ignore
+            else
+                let text = TextBlock()
+                text.Text <- node.Name
+                text.Foreground <- Brushes.White
+                text.FontSize <- 14.0
+                Canvas.SetLeft(text, x + 10.0)
+                Canvas.SetTop(text, y + 15.0)
+
+                text.PointerPressed.Add(fun _ ->
+                    viewModel.ToggleEditing(node.Id)
+                )
+
+                canvas.Children.Add(text) |> ignore
 
         let drawConnection (x1: float) (y1: float) (x2: float) (y2: float) =
             let line = Line()
@@ -51,12 +87,7 @@ type MainWindow() as this =
                 viewModel.Nodes
                 |> Seq.map (fun n ->
                     let (x, y) = n.Position
-                    let color =
-                        match n.NodeType with
-                        | Input _ -> "#2980B9"
-                        | Sum -> "#E67E22"
-                        | Output _ -> "#27AE60"
-                    createVisualNode x y n.Name color
+                    createVisualNode viewModel x y n
                     (n.Id, (x + 25.0, y + 25.0))
                 )
                 |> Map.ofSeq

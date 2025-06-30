@@ -9,20 +9,17 @@
     </Window.DataContext>
 
     <StackPanel Margin="10" Spacing="10">
-        <!-- Input dio -->
         <StackPanel Orientation="Horizontal" Spacing="5">
             <TextBox Width="100" Text="{Binding NewValue}" Watermark="Npr. 10" />
             <Button Content="Dodaj Input" Command="{Binding AddInputCommand}" />
         </StackPanel>
 
-        <!-- Gumbi -->
         <StackPanel Orientation="Horizontal" Spacing="5">
             <Button Content="Dodaj Zbrajanje" Command="{Binding AddSumOperationCommand}" />
             <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
             <Button Content="Obriši sve" Command="{Binding ClearCommand}" Background="DarkRed" Foreground="White" />
         </StackPanel>
 
-        <!-- Canvas gdje se crtaju čvorovi -->
         <Canvas x:Name="NodeCanvas" Width="900" Height="500" Background="Transparent" />
     </StackPanel>
 </Window>
