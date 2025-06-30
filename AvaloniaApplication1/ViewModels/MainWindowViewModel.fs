@@ -1,14 +1,21 @@
 ﻿namespace AvaloniaApplication1.ViewModels
 
 open System.Collections.ObjectModel
-open System.Windows.Input
+open System.Collections.Generic
 open CommunityToolkit.Mvvm.ComponentModel
 open CommunityToolkit.Mvvm.Input
 
+type OperatorNodeType =
+    | Sum
+    | Subtract
+    | Multiply
+    | Divide
+    | Sqrt
+
 type NodeType =
     | Input of float option
-    | Sum
     | Output of float option
+    | Operator of OperatorNodeType
 
 type Node = {
     Id: int
@@ -67,127 +74,189 @@ type MainWindowViewModel() =
             | _ -> ()
         )
 
-    member this.AddSumOperationCommand =
-        RelayCommand(fun () ->
-            let inputIds =
-                nodes
-                |> Seq.filter (fun n -> match n.NodeType with Input (Some _) -> true | _ -> false)
-                |> Seq.map (fun n -> n.Id)
-                |> Seq.toList
+    member this.AddOperator(op: OperatorNodeType) =
+        let inputIds =
+            nodes
+            |> Seq.filter (fun n -> match n.NodeType with Input (Some _) -> true | _ -> false)
+            |> Seq.map (fun n -> n.Id)
+            |> Seq.toList
 
-            let id = System.Guid.NewGuid().GetHashCode()
-            let node = {
-                Id = id
-                Name = "+"
-                NodeType = Sum
-                Position = (300.0, 250.0)
-                Inputs = inputIds
-                IsEditing = false
-            }
+        let id = System.Guid.NewGuid().GetHashCode()
+        let node = {
+            Id = id
+            Name =
+                match op with
+                | Sum -> "+"
+                | Subtract -> "-"
+                | Multiply -> "*"
+                | Divide -> "/"
+                | Sqrt -> "√"
+            NodeType = Operator op
+            Position = (300.0, 250.0)
+            Inputs = inputIds
+            IsEditing = false
+        }
 
-            for fromId in inputIds do
-                connections.Add((fromId, id))
+        for fromId in inputIds do
+            connections.Add((fromId, id))
 
-            nodes.Add(node)
-            nodesChanged.Trigger()
+        nodes.Add(node)
+
+        // Dodaj Output node povezan s ovim operator nodeom
+        let outputId = System.Guid.NewGuid().GetHashCode()
+        let outputNode = {
+            Id = outputId
+            Name = ""
+            NodeType = Output None
+            Position = (node.Position |> fun (x,y) -> (x + 150.0, y))
+            Inputs = [id]
+            IsEditing = false
+        }
+
+        connections.Add((id, outputId))
+        nodes.Add(outputNode)
+
+        nodesChanged.Trigger()
+
+    member this.AddOperatorCommand =
+        RelayCommand<OperatorNodeType>(fun op ->
+            this.AddOperator(op)
         )
 
-    member this.CalculateCommand =
-        RelayCommand(fun () ->
-            let sumNodeOpt =
-                nodes
-                |> Seq.tryFind (fun n -> match n.NodeType with Sum -> true | _ -> false)
+    member this.GetNodeValue(id: int) : float option =
+        nodes
+        |> Seq.tryFind (fun n -> n.Id = id)
+        |> Option.bind (fun n ->
+            match n.NodeType with
+            | Input v | Output v -> v
+            | _ -> None)
 
-            match sumNodeOpt with
-            | Some sumNode ->
-                // očisti stare outputove povezane s ovim sum nodeom
-                let oldOutputs =
+    member this.propagate (operator: OperatorNodeType) (inputs: float option list) (output: float option) : Result<(float option list * float option), string> =
+        let knownInputs = inputs |> List.choose id
+        let unknownInputs = inputs |> List.filter Option.isNone
+        let n = List.length inputs
+
+        match knownInputs.Length, unknownInputs.Length, output with
+        | k, 0, Some outVal ->
+            let result =
+                match operator with
+                | Sum -> knownInputs |> List.sum
+                | Multiply -> knownInputs |> List.reduce (*)
+                | Subtract -> knownInputs |> List.reduce (-)
+                | Divide -> knownInputs |> List.reduce (/)
+                | Sqrt -> sqrt (knownInputs.Head)
+
+            if abs (result - outVal) < 0.0001 then
+                Ok (inputs, Some outVal)
+            else
+                Error "ERROR: Values do not match output"
+        | k, 0, None ->
+            let result =
+                match operator with
+                | Sum -> knownInputs |> List.sum
+                | Multiply -> knownInputs |> List.reduce (*)
+                | Subtract -> knownInputs |> List.reduce (-)
+                | Divide -> knownInputs |> List.reduce (/)
+                | Sqrt -> sqrt (knownInputs.Head)
+
+            Ok (inputs, Some result)
+        | _, 1, Some outVal when n > 1 ->
+            let knownSum = 
+                match operator with
+                | Sum -> knownInputs |> List.sum
+                | Multiply -> knownInputs |> List.fold (*) 1.0
+                | Subtract -> knownInputs.Head
+                | Divide -> knownInputs.Head
+                | Sqrt -> outVal
+
+            let missingValue =
+                match operator with
+                | Sum -> outVal - knownSum
+                | Multiply -> outVal / knownSum
+                | Subtract -> outVal + knownSum
+                | Divide -> outVal * knownSum
+                | Sqrt -> outVal ** 2.0
+
+            let filled = inputs |> List.map (fun i -> if i.IsNone then Some missingValue else i)
+            Ok (filled, Some outVal)
+        | _, x, _ when x > 1 -> Error "Underdetermined"
+        | _ -> Error "Unsupported combination"
+
+    member this.TryPropagateNode(node: Node) : bool =
+        match node.NodeType with
+        | Operator op ->
+            let inputValues = node.Inputs |> List.map this.GetNodeValue
+            let outputNodeOpt =
+                nodes
+                |> Seq.tryFind (fun n -> match n.NodeType with Output _ -> List.exists ((=) node.Id) n.Inputs | _ -> false)
+
+            let outputValue = outputNodeOpt |> Option.bind (fun o -> match o.NodeType with Output v -> v | _ -> None)
+
+            match this.propagate op inputValues outputValue with
+            | Ok (newInputs, newOutput) ->
+                let updated = ref false
+
+                for (inputId, newValOpt) in List.zip node.Inputs newInputs do
+                    match newValOpt with
+                    | Some newVal ->
+                        let i = nodes |> Seq.tryFindIndex (fun n -> n.Id = inputId)
+                        match i with
+                        | Some idx ->
+                            let n = nodes.[idx]
+                            match n.NodeType with
+                            | Input None ->
+                                nodes.[idx] <- { n with NodeType = Input (Some newVal); Name = newVal.ToString("0.##") }
+                                updated := true
+                            | _ -> ()
+                        | _ -> ()
+                    | None -> ()
+
+                match outputNodeOpt, newOutput with
+                | Some outNode, Some result ->
+                    let idx = nodes |> Seq.findIndex (fun n -> n.Id = outNode.Id)
+                    match outNode.NodeType with
+                    | Output None ->
+                        nodes.[idx] <- { outNode with NodeType = Output (Some result); Name = result.ToString("0.##") }
+                        updated := true
+                    | _ -> ()
+                | _ -> ()
+
+                !updated
+
+            | Error _ -> false
+        | _ -> false
+
+    member this.PropagateAll() =
+        let visited = HashSet<int>()
+
+        let rec propagateFrom nodeId =
+            if visited.Contains(nodeId) then () else
+                visited.Add(nodeId) |> ignore
+
+                let affectedNodes =
                     nodes
-                    |> Seq.filter (fun n ->
-                        match n.NodeType with
-                        | Output _ -> List.exists ((=) sumNode.Id) n.Inputs
-                        | _ -> false)
+                    |> Seq.filter (fun n -> List.exists ((=) nodeId) n.Inputs)
                     |> Seq.toList
 
-                for o in oldOutputs do
-                    nodes.Remove(o) |> ignore
+                for node in affectedNodes do
+                    let updated = this.TryPropagateNode(node)
+                    if updated then
+                        propagateFrom node.Id
 
-                // dohvat input nodeova
-                let inputNodes =
-                    sumNode.Inputs
-                    |> List.choose (fun id ->
-                        nodes |> Seq.tryFind (fun n -> n.Id = id)
-                    )
+        let startingNodes =
+            nodes
+            |> Seq.filter (fun n -> match n.NodeType with Input (Some _) -> true | _ -> false)
+            |> Seq.map (fun n -> n.Id)
+            |> Seq.toList
 
-                // nađi output povezan sa sum čvorom
-                let outputNodeOpt =
-                    nodes
-                    |> Seq.tryFind (fun n ->
-                        match n.NodeType with
-                        | Output (Some _) when List.exists ((=) sumNode.Id) n.Inputs -> true
-                        | _ -> false
-                    )
+        for id in startingNodes do
+            propagateFrom id
 
-                let knownInputs =
-                    inputNodes
-                    |> List.choose (fun n ->
-                        match n.NodeType with
-                        | Input (Some v) -> Some (n.Id, v)
-                        | _ -> None
-                    )
+        nodesChanged.Trigger()
 
-                let unknownInputs =
-                    inputNodes
-                    |> List.filter (fun n ->
-                        match n.NodeType with Input None -> true | _ -> false
-                    )
-
-                match knownInputs.Length, unknownInputs.Length, outputNodeOpt with
-                | _, 0, _ ->
-                    // standardno zbrajanje: svi inputi poznati
-                    let total = knownInputs |> List.map snd |> List.sum
-
-                    let output = {
-                        Id = System.Guid.NewGuid().GetHashCode()
-                        Name = total.ToString()
-                        NodeType = Output (Some total)
-                        Position = (500.0, 250.0)
-                        Inputs = [ sumNode.Id ]
-                        IsEditing = false
-                    }
-
-                    connections.Add((sumNode.Id, output.Id))
-                    nodes.Add(output)
-
-                    calculationPerformed.Trigger({
-                        Inputs = knownInputs |> List.map (fun (id, v) -> (id, v.ToString()))
-                        Operation = "+"
-                        Result = total.ToString()
-                    })
-
-                    nodesChanged.Trigger()
-
-                | _, 1, Some outputNode ->
-                    // možemo propagirati unazad – jedan input fali
-                    match outputNode.NodeType with
-                    | Output (Some total) ->
-                        let knownSum = knownInputs |> List.map snd |> List.sum
-                        let missingValue = total - knownSum
-
-                        let missingNode = unknownInputs.Head
-                        let index = nodes |> Seq.findIndex (fun n -> n.Id = missingNode.Id)
-
-                        nodes.[index] <- {
-                            missingNode with
-                                NodeType = Input (Some missingValue)
-                                Name = missingValue.ToString()
-                        }
-
-                        nodesChanged.Trigger()
-                    | _ -> ()
-
-                | _ -> ()
-            | None -> ()
+    member this.PropagateCommand =
+        RelayCommand(fun () ->
+            this.PropagateAll()
         )
 
     member this.UpdateNodeValue(nodeId: int, newValue: string option) =
@@ -200,18 +269,16 @@ type MainWindowViewModel() =
                     match newValue with
                     | Some s when System.Double.TryParse(s) |> fst -> Some (double s)
                     | _ -> None
-
                 let newName = defaultArg newValue ""
-
                 match node.NodeType with
-                | Input _ ->
-                    { node with NodeType = Input parsed; Name = newName; IsEditing = false }
-                | Output _ ->
-                    { node with NodeType = Output parsed; Name = newName; IsEditing = false }
+                | Input _ -> { node with NodeType = Input parsed; Name = newName; IsEditing = false }
+                | Output _ -> { node with NodeType = Output parsed; Name = newName; IsEditing = false }
                 | _ -> node
-
             nodes.[i] <- updatedNode
             nodesChanged.Trigger()
+
+            // automatski poziv propagacije nakon promjene vrijednosti
+            this.PropagateAll()
         | None -> ()
 
     member this.ToggleEditing(nodeId: int) =

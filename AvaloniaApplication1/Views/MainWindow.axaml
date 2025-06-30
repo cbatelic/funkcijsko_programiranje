@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:AvaloniaApplication1.ViewModels"
+        xmlns:op="clr-namespace:AvaloniaApplication1.ViewModels"
         x:Class="AvaloniaApplication1.Views.MainWindow"
         Title="Propagator UI" Width="1000" Height="700" Background="Black">
 
@@ -15,8 +16,12 @@
         </StackPanel>
 
         <StackPanel Orientation="Horizontal" Spacing="5">
-            <Button Content="Dodaj Zbrajanje" Command="{Binding AddSumOperationCommand}" />
-            <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
+            <Button Content="Dodaj Zbrajanje" Command="{Binding AddOperatorCommand}" CommandParameter="{x:Static op:OperatorNodeType.Sum}" />
+            <Button Content="Dodaj Oduzimanje" Command="{Binding AddOperatorCommand}" CommandParameter="{x:Static op:OperatorNodeType.Subtract}" />
+            <Button Content="Dodaj Množenje" Command="{Binding AddOperatorCommand}" CommandParameter="{x:Static op:OperatorNodeType.Multiply}" />
+            <Button Content="Dodaj Dijeljenje" Command="{Binding AddOperatorCommand}" CommandParameter="{x:Static op:OperatorNodeType.Divide}" />
+            <Button Content="Dodaj Korijen" Command="{Binding AddOperatorCommand}" CommandParameter="{x:Static op:OperatorNodeType.Sqrt}" />
+            <Button Content="Izračunaj" Command="{Binding PropagateCommand}" />
             <Button Content="Obriši sve" Command="{Binding ClearCommand}" Background="DarkRed" Foreground="White" />
         </StackPanel>
 

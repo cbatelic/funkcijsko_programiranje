@@ -25,7 +25,7 @@ type MainWindow() as this =
                 SolidColorBrush(
                     match node.NodeType with
                     | Input _ -> Color.Parse("#2980B9")
-                    | Sum -> Color.Parse("#E67E22")
+                    | Operator _ -> Color.Parse("#E67E22")
                     | Output _ -> Color.Parse("#27AE60")
                 )
             circle.Stroke <- Brushes.White
