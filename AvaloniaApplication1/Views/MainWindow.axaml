@@ -8,57 +8,21 @@
         <vm:MainWindowViewModel />
     </Window.DataContext>
 
-    <Grid RowDefinitions="Auto,*">
-        <!-- Gornji dio: kontrole -->
-        <StackPanel Margin="10" Spacing="10">
-            <TextBlock Text="Dodaj ulaznu vrijednost:" Foreground="White" />
-            <StackPanel Orientation="Horizontal" Spacing="5">
-                <TextBox Width="100" Text="{Binding NewValue}" Watermark="Npr. 10" />
-                <Button Content="Dodaj Input" Command="{Binding AddInputCommand}" />
-            </StackPanel>
-
-            <TextBlock Text="Unesi očekivani rezultat:" Foreground="White" />
-            <TextBox Width="100" Text="{Binding ExpectedResult}" Watermark="Npr. 50" />
-
-            <TextBlock Text="Odaberi operaciju:" Foreground="White" />
-            <StackPanel Orientation="Horizontal" Spacing="5">
-                <ComboBox Width="150" ItemsSource="{Binding Operations}" SelectedItem="{Binding SelectedOperation}" />
-                <Button Content="Dodaj operaciju" Command="{Binding AddOperationCommand}" />
-            </StackPanel>
-
-            <TextBlock Text="Rezultat:" Foreground="White" FontWeight="Bold" />
-            <TextBlock Text="{Binding CalculationResult}" FontSize="20" Foreground="LightGreen" />
-
-            <Button Content="Obriši sve" Command="{Binding ClearAllCommand}" Background="DarkRed" Foreground="White" Width="120" />
+    <StackPanel Margin="10" Spacing="10">
+        <!-- Input dio -->
+        <StackPanel Orientation="Horizontal" Spacing="5">
+            <TextBox Width="100" Text="{Binding NewValue}" Watermark="Npr. 10" />
+            <Button Content="Dodaj Input" Command="{Binding AddInputCommand}" />
         </StackPanel>
 
-        <!-- Donji dio: Canvas + Lista čvorova -->
-        <Grid Grid.Row="1">
-            <Canvas x:Name="NodeCanvas"
-                    Background="Transparent"
-                    HorizontalAlignment="Stretch"
-                    VerticalAlignment="Stretch"
-                    IsHitTestVisible="False" />
+        <!-- Gumbi -->
+        <StackPanel Orientation="Horizontal" Spacing="5">
+            <Button Content="Dodaj Zbrajanje" Command="{Binding AddSumOperationCommand}" />
+            <Button Content="Izračunaj" Command="{Binding CalculateCommand}" />
+            <Button Content="Obriši sve" Command="{Binding ClearCommand}" Background="DarkRed" Foreground="White" />
+        </StackPanel>
 
-            <ScrollViewer Margin="10">
-                <ItemsControl ItemsSource="{Binding Nodes}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="White" BorderThickness="1" Margin="5" Padding="5"
-                                    Background="{Binding IsSelected, Converter={StaticResource BoolToBrushConverter}}">
-                                <Button Background="Transparent"
-                                        Command="{Binding DataContext.ToggleSelectionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Name}" Foreground="White" />
-                                        <TextBlock Text="{Binding Value}" Foreground="LightGray" />
-                                    </StackPanel>
-                                </Button>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </Grid>
-    </Grid>
+        <!-- Canvas gdje se crtaju čvorovi -->
+        <Canvas x:Name="NodeCanvas" Width="900" Height="500" Background="Transparent" />
+    </StackPanel>
 </Window>

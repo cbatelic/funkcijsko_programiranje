@@ -4,14 +4,20 @@ open System.Collections.ObjectModel
 open System.Windows.Input
 open CommunityToolkit.Mvvm.ComponentModel
 open CommunityToolkit.Mvvm.Input
-open AvaloniaApplication1.Models.RuntimeNode
-open AvaloniaApplication1.Models.Node
-open AvaloniaApplication1.Logic.BidirectionalPropagation
-open AvaloniaApplication1.Logic.PropagationService
-open FSharp.Data.Adaptive
-open System.Diagnostics
 
-[<CLIMutable>]
+type NodeType =
+    | Input of float
+    | Sum
+    | Output of float option
+
+type Node = {
+    Id: int
+    Name: string
+    NodeType: NodeType
+    Position: float * float
+    Inputs: int list
+}
+
 type CalculationPerformedArgs = {
     Inputs: (int * string) list
     Operation: string
@@ -21,174 +27,111 @@ type CalculationPerformedArgs = {
 type MainWindowViewModel() =
     inherit ObservableObject()
 
-    let nodes = ObservableCollection<RuntimeNode>()
-    let selectedNodes = ResizeArray<RuntimeNode>()
-
-    let operations = [ "Zbrajanje"; "Oduzimanje"; "Množenje"; "Dijeljenje"; "Korijen" ]
-    let mutable selectedOperation = operations.Head
-    let mutable newValue = ""
-    let mutable expectedResult = ""
-    let mutable calculationResult = 0.0
+    let nodes = ObservableCollection<Node>()
+    let connections = ObservableCollection<(int * int)>()
 
     let calculationPerformed = Event<CalculationPerformedArgs>()
     let clearAllRequested = Event<unit>()
+    let nodesChanged = Event<unit>() // Nova notifikacija
+
+    let mutable newValue = ""
+
+    member this.Nodes = nodes
+    member this.Connections = connections
 
     member this.CalculationPerformed = calculationPerformed.Publish
     member this.ClearAllRequested = clearAllRequested.Publish
-
-    member this.Nodes = nodes
+    member this.NodesChanged = nodesChanged.Publish
 
     member this.NewValue
         with get() = newValue
         and set v = this.SetProperty(&newValue, v) |> ignore
 
-    member this.ExpectedResult
-        with get() = expectedResult
-        and set v = this.SetProperty(&expectedResult, v) |> ignore
-
-    member this.SelectedOperation
-        with get() = selectedOperation
-        and set v = this.SetProperty(&selectedOperation, v) |> ignore
-
-    member this.Operations = operations
-
-    member this.CalculationResult
-        with get() = calculationResult
-        and set v = this.SetProperty(&calculationResult, v) |> ignore
-
-    member this.SelectedNodes = selectedNodes
-
-    member this.ToggleSelectionCommand : ICommand =
-        RelayCommand<RuntimeNode>(fun node ->
-            node.IsSelected <- not node.IsSelected
-            if selectedNodes.Contains(node) then
-                selectedNodes.Remove(node) |> ignore
-            else
-                selectedNodes.Add(node)
-        )
-
-    member this.AddInputCommand : ICommand =
+    member this.AddInputCommand =
         RelayCommand(fun () ->
             match System.Double.TryParse(newValue) with
-            | true, v ->
-                let node = RuntimeNode(System.Guid.NewGuid().GetHashCode(), v.ToString(), AVal.constant (Some v))
+            | true, value ->
+                let id = System.Guid.NewGuid().GetHashCode()
+                let node = {
+                    Id = id
+                    Name = value.ToString()
+                    NodeType = Input value
+                    Position = (float nodes.Count * 100.0 + 50.0, 100.0)
+                    Inputs = []
+                }
                 nodes.Add(node)
                 this.NewValue <- ""
-            | _ -> Debug.WriteLine("⚠️ Neispravan unos")
+                nodesChanged.Trigger()
+            | _ -> ()
         )
 
-    member this.AddOperationCommand : ICommand =
+    member this.AddSumOperationCommand =
         RelayCommand(fun () ->
-            let inputNodes =
-                selectedNodes
-                |> Seq.map (fun n ->
-                    {
-                        Id = n.Id
-                        Name = n.Name
-                        NodeType = NodeType.Input
-                        Inputs = []
-                        Value =  n.Value
-                    })
+            let inputIds =
+                nodes
+                |> Seq.filter (fun n -> match n.NodeType with Input _ -> true | _ -> false)
+                |> Seq.map (fun n -> n.Id)
                 |> Seq.toList
 
-            let completedInputs =
-                match inputNodes, System.Double.TryParse(expectedResult) with
-                | inputs, (true, _) when inputs |> List.exists (fun i -> i.Value.IsNone) = false ->
-                    let needed = 1 // Dodaj samo jedan unknown ako imamo očekivani rezultat
-                    let generated =
-                       [1..needed]
-                    |> List.mapi (fun i _ ->
-                        let id = System.Guid.NewGuid().GetHashCode()
-                        let parsedResult = System.Double.TryParse(expectedResult) |> function | true, r -> r | _ -> 0.0
-                        let sumKnown = inputs |> List.choose (fun i -> i.Value) |> List.sum
-                        let unknownValue = parsedResult - sumKnown
-                        { Id = id; Name = unknownValue.ToString(); NodeType = NodeType.Input; Inputs = []; Value = Some unknownValue })
-                    inputs @ generated
-                | _ -> inputNodes
-
-            let nodeId = System.Guid.NewGuid().GetHashCode()
-
-            let operationNode = {
-                Id = nodeId
-                Name = selectedOperation
-                NodeType =
-                    match selectedOperation with
-                    | "Zbrajanje" -> NodeType.Sum
-                    | "Oduzimanje" -> NodeType.Subtract
-                    | "Množenje" -> NodeType.Multiply
-                    | "Dijeljenje" -> NodeType.Divide
-                    | "Korijen" -> NodeType.Sqrt
-                    | _ -> NodeType.Input
-                Inputs = completedInputs |> List.map (fun n -> n.Id)
-                Value = None
+            let id = System.Guid.NewGuid().GetHashCode()
+            let node = {
+                Id = id
+                Name = "+"
+                NodeType = Sum
+                Position = (300.0, 250.0)
+                Inputs = inputIds
             }
 
-            let allNodes = completedInputs @ [ operationNode ]
+            for fromId in inputIds do
+                connections.Add((fromId, id))
 
-            match propagate allNodes operationNode.Id with
-            | Some result ->
-                if not (nodes |> Seq.exists (fun n -> n.Id = operationNode.Id)) then
-                    let newNode = RuntimeNode(operationNode.Id, selectedOperation, AVal.constant (Some result))
-                    nodes.Add(newNode)
-
-                this.CalculationResult <- result
-
-                let args = {
-                    Inputs = completedInputs |> List.map (fun n -> n.Id, n.Name)
-                    Operation = selectedOperation
-                    Result = result.ToString()
-                }
-                calculationPerformed.Trigger(args)
-
-                for n in selectedNodes do
-                    n.IsSelected <- false
-                selectedNodes.Clear()
-
-            | None ->
-                match System.Double.TryParse(expectedResult) with
-                | true, r ->
-                    let reverseNode = { operationNode with Value = Some r }
-
-                    let updatedInputs =
-                        match selectedOperation with
-                        | "Zbrajanje" -> tryBackwardSum allNodes reverseNode
-                        | "Oduzimanje" -> tryBackwardSubtract allNodes reverseNode
-                        | "Množenje" -> tryBackwardMultiply allNodes reverseNode
-                        | "Dijeljenje" -> tryBackwardDivide allNodes reverseNode
-                        | "Korijen" -> tryBackwardSqrt allNodes reverseNode
-                        | _ -> []
-
-                    for u in updatedInputs do
-                        match nodes |> Seq.tryFind (fun n -> n.Id = u.Id) with
-                        | Some runtime -> runtime.ForceUpdate(u.Value)
-                        | None ->
-                            let newInputNode = RuntimeNode(u.Id, u.Name, AVal.constant (u.Value))
-                            nodes.Add(newInputNode)
-
-                    this.CalculationResult <- r
-                    let combined = (completedInputs @ updatedInputs)
-                    let args = {
-                        Inputs = combined |> List.distinctBy (fun n -> n.Id) |> List.map (fun n -> n.Id, n.Name)
-                        Operation = selectedOperation
-                        Result = r.ToString()
-                    }
-                    calculationPerformed.Trigger(args)
-
-                    for n in selectedNodes do
-                        n.IsSelected <- false
-                    selectedNodes.Clear()
-
-                | _ ->
-                    this.CalculationResult <- nan
+            nodes.Add(node)
+            nodesChanged.Trigger()
         )
 
-    member this.ClearAllCommand : ICommand =
+    member this.CalculateCommand =
+        RelayCommand(fun () ->
+            let sumNode =
+                nodes
+                |> Seq.tryFind (fun n -> match n.NodeType with Sum -> true | _ -> false)
+
+            match sumNode with
+            | Some sum ->
+                let inputs =
+                    sum.Inputs
+                    |> List.choose (fun id ->
+                        nodes
+                        |> Seq.tryFind (fun n -> n.Id = id)
+                        |> Option.bind (fun n -> match n.NodeType with Input v -> Some (id, v) | _ -> None))
+
+                let total = inputs |> List.map snd |> List.sum
+
+                let outputId = System.Guid.NewGuid().GetHashCode()
+                let output = {
+                    Id = outputId
+                    Name = total.ToString()
+                    NodeType = Output (Some total)
+                    Position = (500.0, 250.0)
+                    Inputs = [ sum.Id ]
+                }
+
+                connections.Add((sum.Id, outputId))
+                nodes.Add(output)
+
+                calculationPerformed.Trigger({
+                    Inputs = inputs |> List.map (fun (id, v) -> (id, v.ToString()))
+                    Operation = "+"
+                    Result = total.ToString()
+                })
+
+                nodesChanged.Trigger()
+            | None -> ()
+        )
+
+    member this.ClearCommand =
         RelayCommand(fun () ->
             nodes.Clear()
-            selectedNodes.Clear()
-            this.NewValue <- ""
-            this.ExpectedResult <- ""
-            this.CalculationResult <- 0.0
-            this.SelectedOperation <- operations.Head
+            connections.Clear()
             clearAllRequested.Trigger()
+            nodesChanged.Trigger()
         )

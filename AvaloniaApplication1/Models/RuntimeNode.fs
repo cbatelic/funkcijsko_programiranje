@@ -33,6 +33,13 @@ type RuntimeNode(id: int, name: string, value: aval<float option>) =
             if isSelected <> v then
                 isSelected <- v
                 propertyChanged.Trigger(this, PropertyChangedEventArgs(nameof this.IsSelected))
+                
+    member this.EditableText
+        with get() = this.Value |> Option.map string |> Option.defaultValue ""
+        and set(v: string) =
+            match System.Double.TryParse(v) with
+            | true, num -> this.Value <- Some num
+            | false, _ -> this.Value <- None
 
     member this.ForceUpdate(newValue: float option) =
         this.Value <- newValue
