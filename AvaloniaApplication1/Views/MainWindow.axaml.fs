@@ -8,6 +8,8 @@ open Avalonia.Markup.Xaml
 open Avalonia.Media
 open AvaloniaApplication1.ViewModels
 
+open System
+
 type MainWindow() as this =
     inherit Window()
 
@@ -53,19 +55,25 @@ type MainWindow() as this =
                 Canvas.SetLeft(textBox, x + 5.0)
                 Canvas.SetTop(textBox, y + 15.0)
 
-                // Save on LostFocus
-                textBox.LostFocus.Add(fun _ ->
+                let applyValue () =
                     let newValue =
-                        if System.String.IsNullOrWhiteSpace(textBox.Text) then
+                        if String.IsNullOrWhiteSpace(textBox.Text) then
                             None
                         else Some textBox.Text
+
+                    printfn $"applyValue called for node {node.Id} with newValue: %A{newValue}"
+
                     viewModel.UpdateNodeValue(node.Id, newValue)
-                )
+                    viewModel.ToggleEditing(node.Id)
+
+
+                // Save on LostFocus
+                textBox.LostFocus.Add(fun _ -> applyValue())
 
                 // Save on Enter
                 textBox.KeyDown.Add(fun args ->
                     if args.Key = Key.Enter then
-                        textBox.Focusable <- false
+                        applyValue()
                         this.Focus() |> ignore
                 )
 

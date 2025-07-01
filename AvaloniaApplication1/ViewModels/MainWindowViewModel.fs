@@ -145,10 +145,8 @@ type MainWindowViewModel() =
                 | Divide -> knownInputs |> List.reduce (/)
                 | Sqrt -> sqrt (knownInputs.Head)
 
-            if abs (result - outVal) < 0.0001 then
-                Ok (inputs, Some outVal)
-            else
-                Error "ERROR: Values do not match output"
+            // Uklonjena stroga provjera, uvijek vraća OK s izračunom
+            Ok (inputs, Some result)
         | k, 0, None ->
             let result =
                 match operator with
@@ -213,16 +211,21 @@ type MainWindowViewModel() =
                 match outputNodeOpt, newOutput with
                 | Some outNode, Some result ->
                     let idx = nodes |> Seq.findIndex (fun n -> n.Id = outNode.Id)
-                    match outNode.NodeType with
-                    | Output None ->
+                    let currentValue =
+                        match outNode.NodeType with
+                        | Output v -> v
+                        | _ -> None
+
+                    if currentValue <> Some result then
                         nodes.[idx] <- { outNode with NodeType = Output (Some result); Name = result.ToString("0.##") }
                         updated := true
-                    | _ -> ()
                 | _ -> ()
 
                 !updated
 
-            | Error _ -> false
+            | Error msg ->
+                printfn $"Propagation error at node %d{node.Id}: %s{msg}"
+                false
         | _ -> false
 
     member this.PropagateAll() =
@@ -244,7 +247,6 @@ type MainWindowViewModel() =
 
         let startingNodes =
             nodes
-            |> Seq.filter (fun n -> match n.NodeType with Input (Some _) -> true | _ -> false)
             |> Seq.map (fun n -> n.Id)
             |> Seq.toList
 
