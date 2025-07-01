@@ -42,7 +42,11 @@ type MainWindowViewModel() =
     let clearAllRequested = Event<unit>()
     let nodesChanged = Event<unit>()
 
+    // Mutable polje za NewValue
     let mutable newValue = ""
+
+    // Flag za kontrolu automatske propagacije
+    let mutable allowAutoPropagation = false
 
     member this.Nodes = nodes
     member this.Connections = connections
@@ -125,10 +129,7 @@ type MainWindowViewModel() =
     member this.GetNodeValue(id: int) : float option =
         nodes
         |> Seq.tryFind (fun n -> n.Id = id)
-        |> Option.bind (fun n ->
-            match n.NodeType with
-            | Input v | Output v -> v
-            | _ -> None)
+        |> Option.bind (fun n -> match n.NodeType with Input v | Output v -> v | _ -> None)
 
     member this.propagate (operator: OperatorNodeType) (inputs: float option list) (output: float option) : Result<(float option list * float option), string> =
         let knownInputs = inputs |> List.choose id
@@ -139,55 +140,53 @@ type MainWindowViewModel() =
         | k, 0, Some outVal ->
             let result =
                 match operator with
-                | Sum -> knownInputs |> List.sum
-                | Multiply -> knownInputs |> List.reduce (*)
-                | Subtract -> knownInputs |> List.reduce (-)
-                | Divide -> knownInputs |> List.reduce (/)
-                | Sqrt -> sqrt (knownInputs.Head)
-
-            // Uklonjena stroga provjera, uvijek vraća OK s izračunom
-            Ok (inputs, Some result)
+                | Sum -> List.sum knownInputs
+                | Multiply -> List.reduce (*) knownInputs
+                | Subtract -> List.reduce (-) knownInputs
+                | Divide -> List.reduce (/) knownInputs
+                | Sqrt -> sqrt (List.head knownInputs)
+            if abs (result - outVal) < 0.0001 then
+                Ok (inputs, Some outVal)
+            else
+                Error "Vrijednosti ne odgovaraju rezultatu"
         | k, 0, None ->
             let result =
                 match operator with
-                | Sum -> knownInputs |> List.sum
-                | Multiply -> knownInputs |> List.reduce (*)
-                | Subtract -> knownInputs |> List.reduce (-)
-                | Divide -> knownInputs |> List.reduce (/)
-                | Sqrt -> sqrt (knownInputs.Head)
-
+                | Sum -> List.sum knownInputs
+                | Multiply -> List.reduce (*) knownInputs
+                | Subtract -> List.reduce (-) knownInputs
+                | Divide -> List.reduce (/) knownInputs
+                | Sqrt -> sqrt (List.head knownInputs)
             Ok (inputs, Some result)
-        | _, 1, Some outVal when n > 1 ->
-            let knownSum = 
-                match operator with
-                | Sum -> knownInputs |> List.sum
-                | Multiply -> knownInputs |> List.fold (*) 1.0
-                | Subtract -> knownInputs.Head
-                | Divide -> knownInputs.Head
-                | Sqrt -> outVal
-
+        | k, 1, Some outVal when n > 1 ->
             let missingValue =
                 match operator with
-                | Sum -> outVal - knownSum
-                | Multiply -> outVal / knownSum
-                | Subtract -> outVal + knownSum
-                | Divide -> outVal * knownSum
+                | Sum -> outVal - List.sum knownInputs
+                | Multiply -> outVal / List.fold (*) 1.0 knownInputs
+                | Subtract -> knownInputs.Head - outVal
+                | Divide -> knownInputs.Head / outVal
                 | Sqrt -> outVal ** 2.0
-
             let filled = inputs |> List.map (fun i -> if i.IsNone then Some missingValue else i)
             Ok (filled, Some outVal)
-        | _, x, _ when x > 1 -> Error "Underdetermined"
-        | _ -> Error "Unsupported combination"
+        | _, x, _ when x > 1 -> Error "Premalo poznatih vrijednosti"
+        | _ -> Error "Nepodržana kombinacija inputa/outputa"
 
     member this.TryPropagateNode(node: Node) : bool =
         match node.NodeType with
         | Operator op ->
             let inputValues = node.Inputs |> List.map this.GetNodeValue
+            printfn $"🔁 TryPropagateNode: NodeId={node.Id}, Operator={op}, Inputs={inputValues}"
+
             let outputNodeOpt =
                 nodes
-                |> Seq.tryFind (fun n -> match n.NodeType with Output _ -> List.exists ((=) node.Id) n.Inputs | _ -> false)
+                |> Seq.tryFind (fun n ->
+                    match n.NodeType with
+                    | Output _ -> List.contains node.Id n.Inputs
+                    | _ -> false)
 
-            let outputValue = outputNodeOpt |> Option.bind (fun o -> match o.NodeType with Output v -> v | _ -> None)
+            let outputValue =
+                outputNodeOpt |> Option.bind (fun o ->
+                    match o.NodeType with Output v -> v | _ -> None)
 
             match this.propagate op inputValues outputValue with
             | Ok (newInputs, newOutput) ->
@@ -201,84 +200,97 @@ type MainWindowViewModel() =
                         | Some idx ->
                             let n = nodes.[idx]
                             match n.NodeType with
-                            | Input None ->
-                                nodes.[idx] <- { n with NodeType = Input (Some newVal); Name = newVal.ToString("0.##") }
-                                updated := true
+                            | Input oldVal ->
+                                if oldVal <> Some newVal then
+                                    printfn $"📝 Updating Input Node {inputId}: {oldVal} → {newVal}"
+                                    nodes.[idx] <- { n with NodeType = Input (Some newVal); Name = newVal.ToString("0.##") }
+                                    updated := true
                             | _ -> ()
-                        | _ -> ()
+                        | None -> ()
                     | None -> ()
 
                 match outputNodeOpt, newOutput with
                 | Some outNode, Some result ->
                     let idx = nodes |> Seq.findIndex (fun n -> n.Id = outNode.Id)
-                    let currentValue =
-                        match outNode.NodeType with
-                        | Output v -> v
-                        | _ -> None
-
-                    if currentValue <> Some result then
-                        nodes.[idx] <- { outNode with NodeType = Output (Some result); Name = result.ToString("0.##") }
-                        updated := true
+                    match outNode.NodeType with
+                    | Output oldVal ->
+                        if oldVal <> Some result then
+                            printfn $"📝 Updating Output Node {outNode.Id}: {oldVal} → {result}"
+                            nodes.[idx] <- { outNode with NodeType = Output (Some result); Name = result.ToString("0.##") }
+                            updated := true
+                    | _ -> ()
                 | _ -> ()
 
                 !updated
-
             | Error msg ->
-                printfn $"Propagation error at node %d{node.Id}: %s{msg}"
+                printfn $"⚠️ Propagation error at node {node.Id}: {msg}"
                 false
         | _ -> false
 
     member this.PropagateAll() =
-        let visited = HashSet<int>()
-
-        let rec propagateFrom nodeId =
-            if visited.Contains(nodeId) then () else
-                visited.Add(nodeId) |> ignore
-
-                let affectedNodes =
-                    nodes
-                    |> Seq.filter (fun n -> List.exists ((=) nodeId) n.Inputs)
-                    |> Seq.toList
-
-                for node in affectedNodes do
+        let mutable anyUpdated = true
+        while anyUpdated do
+            anyUpdated <- false
+            for node in Seq.toList nodes do
+                match node.NodeType with
+                | Operator _ ->
                     let updated = this.TryPropagateNode(node)
-                    if updated then
-                        propagateFrom node.Id
-
-        let startingNodes =
-            nodes
-            |> Seq.map (fun n -> n.Id)
-            |> Seq.toList
-
-        for id in startingNodes do
-            propagateFrom id
-
+                    if updated then anyUpdated <- true
+                | _ -> ()
         nodesChanged.Trigger()
 
     member this.PropagateCommand =
         RelayCommand(fun () ->
+            allowAutoPropagation <- true
             this.PropagateAll()
+            allowAutoPropagation <- false
         )
 
     member this.UpdateNodeValue(nodeId: int, newValue: string option) =
+        printfn $"UpdateNodeValue called for nodeId={nodeId} with newValue={newValue}"
         let index = nodes |> Seq.tryFindIndex (fun n -> n.Id = nodeId)
         match index with
         | Some i ->
             let node = nodes.[i]
+
+            let parsed =
+                match newValue with
+                | Some s when System.Double.TryParse(s) |> fst -> Some (double s)
+                | Some s when System.String.IsNullOrWhiteSpace(s) -> None
+                | None -> None
+                | _ -> None
+
+            let newName =
+                match parsed with
+                | None -> ""
+                | Some v -> v.ToString("0.##")
+
+            printfn $"FINAL: parsed = {parsed}, newName = '{newName}'"
+
             let updatedNode =
-                let parsed =
-                    match newValue with
-                    | Some s when System.Double.TryParse(s) |> fst -> Some (double s)
-                    | _ -> None
-                let newName = defaultArg newValue ""
                 match node.NodeType with
-                | Input _ -> { node with NodeType = Input parsed; Name = newName; IsEditing = false }
-                | Output _ -> { node with NodeType = Output parsed; Name = newName; IsEditing = false }
+                | Input _ ->
+                    { node with NodeType = Input parsed; Name = newName; IsEditing = false }
+                | Output _ ->
+                    { node with NodeType = Output parsed; Name = newName; IsEditing = false }
                 | _ -> node
-            nodes.[i] <- updatedNode
-            nodesChanged.Trigger()
-            this.PropagateAll()
-        | None -> ()
+
+            let hasChanged =
+                match node.NodeType, updatedNode.NodeType with
+                | Input oldVal, Input newVal -> oldVal <> newVal || node.Name <> updatedNode.Name
+                | Output oldVal, Output newVal -> oldVal <> newVal || node.Name <> updatedNode.Name
+                | _ -> true
+
+            if hasChanged then
+                nodes.[i] <- updatedNode
+                nodesChanged.Trigger()
+
+                if allowAutoPropagation && parsed.IsSome then
+                    this.PropagateAll()
+            else
+                printfn $"⚠️ No update needed for node {node.Id}"
+        | None ->
+            printfn "❌ Node not found"
 
     member this.RemoveNode(nodeId: int) =
         let toRemove =

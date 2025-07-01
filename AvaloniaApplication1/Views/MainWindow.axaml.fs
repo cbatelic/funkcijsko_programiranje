@@ -55,22 +55,26 @@ type MainWindow() as this =
                 Canvas.SetLeft(textBox, x + 5.0)
                 Canvas.SetTop(textBox, y + 15.0)
 
+                // Lokalna varijabla koja drži zadnji tekst
+                let mutable latestText : string = textBox.Text
+
+                // Prati sve promjene teksta
+                textBox.TextChanged.Add(fun _ ->
+                    latestText <- textBox.Text
+                )
+
                 let applyValue () =
                     let newValue =
-                        if String.IsNullOrWhiteSpace(textBox.Text) then
-                            None
-                        else Some textBox.Text
-
-                    printfn $"applyValue called for node {node.Id} with newValue: %A{newValue}"
+                        if System.String.IsNullOrWhiteSpace(latestText) then None
+                        else Some latestText
 
                     viewModel.UpdateNodeValue(node.Id, newValue)
                     viewModel.ToggleEditing(node.Id)
 
-
-                // Save on LostFocus
+                // Spremi na LostFocus
                 textBox.LostFocus.Add(fun _ -> applyValue())
 
-                // Save on Enter
+                // Spremi na ENTER
                 textBox.KeyDown.Add(fun args ->
                     if args.Key = Key.Enter then
                         applyValue()
