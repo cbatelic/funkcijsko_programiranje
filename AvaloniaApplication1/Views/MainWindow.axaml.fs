@@ -34,6 +34,18 @@ type MainWindow() as this =
             Canvas.SetTop(circle, y)
             canvas.Children.Add(circle) |> ignore
 
+            // Gumb za brisanje
+            let deleteButton = Button(Content = "🗑", Width = 24.0, Height = 24.0)
+            Canvas.SetLeft(deleteButton, x + radius - 12.0)
+            Canvas.SetTop(deleteButton, y - 12.0)
+            deleteButton.Background <- Brushes.Transparent
+            deleteButton.Foreground <- Brushes.White
+            deleteButton.FontSize <- 14.0
+            deleteButton.Click.Add(fun _ ->
+                viewModel.RemoveNode(node.Id)
+            )
+            canvas.Children.Add(deleteButton) |> ignore
+
             if node.IsEditing then
                 let textBox = TextBox()
                 textBox.Width <- 40.0

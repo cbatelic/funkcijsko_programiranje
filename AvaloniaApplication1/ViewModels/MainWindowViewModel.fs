@@ -102,7 +102,6 @@ type MainWindowViewModel() =
 
         nodes.Add(node)
 
-        // Dodaj Output node povezan s ovim operator nodeom
         let outputId = System.Guid.NewGuid().GetHashCode()
         let outputNode = {
             Id = outputId
@@ -276,10 +275,33 @@ type MainWindowViewModel() =
                 | _ -> node
             nodes.[i] <- updatedNode
             nodesChanged.Trigger()
-
-            // automatski poziv propagacije nakon promjene vrijednosti
             this.PropagateAll()
         | None -> ()
+
+    member this.RemoveNode(nodeId: int) =
+        let toRemove =
+            connections
+            |> Seq.filter (fun (fromId, toId) -> fromId = nodeId || toId = nodeId)
+            |> Seq.toList
+
+        for conn in toRemove do
+            connections.Remove(conn) |> ignore
+
+        let maybeNode =
+            nodes
+            |> Seq.tryFind (fun n -> n.Id = nodeId)
+
+        match maybeNode with
+        | Some node ->
+            nodes.Remove(node) |> ignore
+            nodesChanged.Trigger()
+            this.PropagateAll()
+        | None -> ()
+
+    member this.RemoveNodeCommand =
+        RelayCommand<int>(fun id ->
+            this.RemoveNode(id)
+        )
 
     member this.ToggleEditing(nodeId: int) =
         let index = nodes |> Seq.tryFindIndex (fun n -> n.Id = nodeId)
